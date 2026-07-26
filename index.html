@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>J.A.R.V.I.S. Interface</title>
+    <title>J.A.R.V.I.S. Inteligence Core</title>
     <style>
         * {
             margin: 0;
@@ -26,6 +26,8 @@
         .container {
             text-align: center;
             position: relative;
+            max-width: 600px;
+            padding: 20px;
         }
 
         .arc-reactor {
@@ -38,8 +40,14 @@
             justify-content: center;
             position: relative;
             box-shadow: 0 0 30px #00f0ff, inset 0 0 30px #00f0ff;
-            animation: pulse 2s infinite alternate;
             margin: 0 auto 30px auto;
+        }
+
+        /* Animação quando a IA está processando conhecimento */
+        .thinking {
+            animation: spinPulse 1.2s infinite linear;
+            border-color: #00ffaa !important;
+            box-shadow: 0 0 30px #00ffaa, inset 0 0 30px #00ffaa !important;
         }
 
         .core {
@@ -48,6 +56,12 @@
             background-color: #00f0ff;
             border-radius: 50%;
             box-shadow: 0 0 50px #fff;
+            transition: 0.5s;
+        }
+
+        .thinking .core {
+            background-color: #00ffaa !important;
+            box-shadow: 0 0 50px #00ffaa !important;
         }
 
         h1 {
@@ -61,6 +75,8 @@
             font-size: 1rem;
             color: #8bdfed;
             margin-bottom: 20px;
+            line-height: 1.4;
+            min-height: 40px;
         }
 
         button {
@@ -81,36 +97,75 @@
             box-shadow: 0 0 25px #00f0ff;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 20px #00f0ff; }
-            100% { transform: scale(1.05); box-shadow: 0 0 40px #00f0ff; }
+        @keyframes spinPulse {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.05) rotate(180deg); }
+            100% { transform: scale(1) rotate(360deg); }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="arc-reactor">
+        <div class="arc-reactor" id="reactor">
             <div class="core"></div>
         </div>
         <h1>J.A.R.V.I.S.</h1>
-        <p id="status">Clique no botão para ativar</p>
+        <p id="status">Clique abaixo para inicializar a IA.</p>
         <button id="btn">Iniciar Sistema</button>
     </div>
 
-    <script>
+    <!-- Importação do SDK da IA do Google de forma direta -->
+    <script type="module">
+        import { GoogleGenAI } from "https://esm.run";
+
+        // IMPORTANTE: Insira sua chave de acesso gerada no Google AI Studio aqui dentro das aspas
+        const apiKey = "SUA_API_KEY_AQUI";
+
+        const ai = new GoogleGenAI({ apiKey: apiKey });
+
         const btn = document.getElementById('btn');
         const statusText = document.getElementById('status');
+        const reactor = document.getElementById('reactor');
 
-        // Configuração da Fala (Texto para Voz)
+        // Mecanismo de síntese de voz nativa
         function falar(texto) {
             const fala = new SpeechSynthesisUtterance(texto);
             fala.lang = 'pt-BR';
-            fala.rate = 1.0;
+            fala.rate = 1.05; 
             window.speechSynthesis.speak(fala);
         }
 
-        // Reconhecimento de Voz
+        // Conexão e prompt com o modelo inteligente Gemini 2.5
+        async function processarIA(perguntaDoUsuario) {
+            reactor.classList.add('thinking');
+            statusText.innerText = "Buscando nos bancos de dados globais...";
+
+            try {
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: preguntaDoUsuario,
+                    config: {
+                        // Diretrizes fundamentais para manter a personalidade do JARVIS
+                        systemInstruction: "Você é o J.A.R.V.I.S., a inteligência artificial ultra avançada do Engenheiro Edgar. Responda-o sempre com respeito, chamando-o de Engenheiro Edgar ou Senhor. Suas respostas devem conter raciocínio lógico impecável, sabedoria profunda no nível do Google, mas ser extremamente diretas, sem textos longos, pois suas respostas serão lidas por voz artificial.",
+                    }
+                });
+
+                const respostaTexto = response.text;
+                
+                reactor.classList.remove('thinking');
+                statusText.innerText = `J.A.R.V.I.S: ${respostaTexto}`;
+                falar(respostaTexto);
+
+            } catch (erro) {
+                reactor.classList.remove('thinking');
+                statusText.innerText = "Falha no link de dados neural.";
+                falar("Houve uma queda de conexão com a rede principal, Engenheiro Edgar.");
+                console.error(erro);
+            }
+        }
+
+        // Sistema de reconhecimento de voz
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         
         if (SpeechRecognition) {
@@ -119,34 +174,40 @@
             recognition.continuous = false;
 
             btn.addEventListener('click', () => {
-                falar("Sistema online. Como posso ajudar, senhor?");
-                statusText.innerText = "Ouvindo...";
-                recognition.start();
+                falar("Seja bem vindo Engenheiro Edgar. Sistema online. Como posso ajudar?");
+                statusText.innerText = "Escutando diretrizes...";
+                
+                setTimeout(() => {
+                    recognition.start();
+                }, 4000); 
             });
 
             recognition.onresult = (event) => {
-                const comando = event.results[0][0].transcript.toLowerCase();
-                statusText.innerText = "Comando: " + comando;
+                const comando = event.results.transcript.toLowerCase();
+                statusText.innerText = `Você disse: "${comando}"`;
 
+                // Comandos nativos em cache local rápido
                 if (comando.includes('que horas são') || comando.includes('horas')) {
                     const agora = new Date();
-                    const horario = `${agora.getHours()} e ${agora.getMinutes()} minutos`;
-                    falar(`Agora são ${horario}`);
+                    falar(`Agora são ${agora.getHours()} horas e ${agora.getMinutes()} minutos, Senhor.`);
                 } 
                 else if (comando.includes('abrir o google')) {
-                    falar("Abrindo o Google, senhor.");
+                    falar("Abrindo terminal de busca Google, Engenheiro Edgar.");
                     window.open('https://google.com', '_blank');
                 } 
+                // Envia todo o restante para processamento na IA
                 else {
-                    falar("Desculpe, não reconheci esse comando.");
+                    processarIA(comando);
                 }
             };
 
             recognition.onend = () => {
-                statusText.innerText = "Clique para falar novamente";
+                if(!reactor.classList.contains('thinking')) {
+                    statusText.innerText = "Pronto para novas ordens...";
+                }
             };
         } else {
-            statusText.innerText = "Navegador não suporta reconhecimento de voz.";
+            statusText.innerText = "Hardware de áudio ou navegador não suportado.";
         }
     </script>
 </body>
